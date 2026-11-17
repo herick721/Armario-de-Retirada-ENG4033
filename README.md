@@ -36,6 +36,6 @@ Armario-de-Retirada-ENG4033/
 
 | Parte | Responsável |
 |---|---|
-| Firmware | Aluno 1 |
+| Firmware | Samuel Tourinho |
 | Backend e segurança | Herick Pinheiro |
-| Interface e montagem | Aluno 3 |
+| Interface e montagem | Helena Gerk |
