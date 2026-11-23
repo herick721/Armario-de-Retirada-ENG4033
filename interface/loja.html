@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vira · Loja do Armário</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    [hidden] {
+      display: none !important;
+    }
+    body {
+      margin: 0;
+      background: #f6f4ef;
+      color: #272633;
+      font-family: "Inter", "Arial", sans-serif;
+      line-height: 1.6;
+    }
+    button {
+      font: inherit;
+      cursor: pointer;
+    }
+    button:focus-visible, a:focus-visible {
+      outline: 3px solid #6a49be;
+      outline-offset: 4px;
+    }
+    .container {
+      width: min(1120px, 100% - 40px);
+      margin: 0 auto;
+    }
+    .cabecalho {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 24px 0;
+      border-bottom: 1px solid #dedbd4;
+    }
+    .marca {
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -1px;
+    }
+    .marca span {
+      color: #6a49be;
+    }
+    .modo {
+      font-size: 13px;
+      color: #5b5866;
+    }
+    .abertura {
+      padding: 42px 0 28px;
+    }
+    h1 {
+      font-size: clamp(32px, 5vw, 52px);
+      line-height: 1.12;
+      letter-spacing: -2px;
+      margin: 0 0 16px;
+    }
+    .abertura p {
+      margin: 0;
+      color: #5b5866;
+      max-width: 560px;
+    }
+    .conteudo {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      align-items: start;
+      gap: 28px;
+      padding-bottom: 40px;
+    }
+    .catalogo {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .produto {
+      background: #fff;
+      border: 1px solid #dedbd4;
+      border-radius: 18px;
+      overflow: hidden;
+    }
+    .produto.selecionado {
+      border-color: #6a49be;
+      box-shadow: 0 0 0 2px #6a49be;
+    }
+    .visual {
+      height: 150px;
+      display: grid;
+      place-items: center;
+      font-size: 64px;
+    }
+    .lilas {
+      background: #e7dff9;
+    }
+    .verde {
+      background: #d9ece2;
+    }
+    .pessego {
+      background: #f8dfc9;
+    }
+    .detalhes {
+      padding: 18px;
+    }
+    h2, h3, p {
+      margin-top: 0;
+    }
+    .produto h3 {
+      font-size: 17px;
+      line-height: 1.3;
+      min-height: 44px;
+      margin-bottom: 8px;
+    }
+    .descricao {
+      font-size: 13px;
+      color: #5b5866;
+      min-height: 64px;
+    }
+    .preco {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .botao-produto, .primario, .secundario {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 10px;
+      border: 1px solid #d5c9ed;
+      background: #f2edf9;
+      color: #50328f;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    button:hover:not(:disabled) {
+      filter: brightness(0.96);
+    }
+    .primario {
+      background: #513288;
+      color: #fff;
+      border-color: #513288;
+    }
+    button:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+    .resumo {
+      background: #fff;
+      border: 1px solid #dedbd4;
+      border-radius: 18px;
+      padding: 24px;
+    }
+    .resumo h2 {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+    .ajuda {
+      font-size: 13px;
+      color: #5b5866;
+    }
+    .linha-resumo {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 0;
+      border-top: 1px solid #e6e2dc;
+      border-bottom: 1px solid #e6e2dc;
+      margin-bottom: 18px;
+    }
+    .linha-resumo strong {
+      white-space: nowrap;
+    }
+    .foto-produto {
+      width: 100%;
+      height: 200px;
+      object-fit: contain;
+      background: white;
+      display: block;
+    }
+    .aprovado {
+      color: #265844;
+      background: #e7f2eb;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: 700;
+    }
+    .codigo {
+      font-size: 32px;
+      letter-spacing: 5px;
+      font-weight: 800;
+      color: #50328f;
+      margin: 8px 0 16px;
+    }
+    footer {
+      border-top: 1px solid #dedbd4;
+      padding: 20px 0;
+      color: #5b5866;
+      font-size: 13px;
+    }
+    @media (max-width: 1000px) {
+    .conteudo {
+      grid-template-columns: 1fr;
+    }
+    }
+    @media (max-width: 600px) {
+    .catalogo {
+      grid-template-columns: 1fr;
+    }
+    .visual {
+      height: 130px;
+    }
+    .cabecalho {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+    }
+  </style>
+</head>
+<body>
+  <!-- Cabeçalho e apresentação da loja. -->
+  <header class="container cabecalho">
+    <div class="marca">imagina<span>.</span></div>
+    <span class="modo">Projeto Armário · Pagamento simulado</span>
+  </header>
+  <main class="container">
+    <section class="abertura">
+      <h1>Escolha aqui.<br>Retire em nossos lockers.</h1>
+      <p>Trabalhamos com produtos e estampas sazonais, por aqui nunca falta imaginação! 
+        Escolha um produto e confirme o pagamento simulado para receber seu código.</p>
+    </section>
+    <div class="conteudo">
+      <section class="catalogo" aria-label="Produtos disponíveis">
+        <article class="produto" id="cartao-caneca">
+          <img class="foto-produto"
+            src="imagens/caneca.jpg"
+            alt="Caneca personalizada">
+          <div class="detalhes">
+            <h3>Caneca Stitch</h3>
+            <p class="descricao"> Caneca de edição limitada. Garanta a sua hoje</p>
+            <p class="preco">R$ 39,90</p>
+            <button class="botao-produto" type="button" data-produto="caneca" aria-pressed="false">Add ao carrinho</button>
+          </div>
+        </article>
+        <article class="produto" id="cartao-caderno">
+          <img class="foto-produto"
+            src="imagens/caderno.webp"
+            alt="Caderno Salsicha">
+          <div class="detalhes">
+            <h3>Caderno salsicha - mini</h3>
+            <p class="descricao">Páginas para planejar, desenhar e tirar suas ideias do papel.</p>
+            <p class="preco">R$ 44,90</p>
+            <button class="botao-produto" type="button" data-produto="caderno" aria-pressed="false">Add ao carrinho</button>
+          </div>
+        </article>
+        <article class="produto" id="cartao-garrafa">
+          <img class="foto-produto"
+            src="imagens/garrafa.avif"
+            alt="Garrafa térmica">
+          <div class="detalhes">
+            <h3>Garrafa térmica colorida</h3>
+            <p class="descricao"> Mantém água gelada ou quente por até 24 horas, alta vedação e design leve e portátil.</p>
+            <p class="preco">R$ 89,90</p>
+            <button class="botao-produto" type="button" data-produto="garrafa" aria-pressed="false">Add ao carrinho</button>
+          </div>
+        </article>
+      </section>
+      <aside class="resumo" aria-labelledby="titulo-resumo">
+        <h2 id="titulo-resumo">Seu pedido</h2>
+        <p class="ajuda">Um produto por pedido nesta demonstração.</p>
+        <form id="formulario-pagamento">
+          <div class="linha-resumo" aria-live="polite">
+            <span id="nome-escolhido">Escolha um produto</span>
+            <strong id="preco-escolhido">—</strong>
+          </div>
+          <p class="ajuda">Ao confirmar, você verá um código de retirada de teste. Não há cobrança.</p>
+          <button class="primario" id="botao-pagar" type="submit" disabled>Simular pagamento</button>
+        </form>
+        <section id="confirmacao" aria-label="Confirmação do pedido" aria-live="polite" hidden>
+          <p class="aprovado">Pagamento simulado aprovado!</p>
+          <p id="resumo-confirmado"></p>
+          <p class="ajuda">Seu código de retirada de teste</p>
+          <p class="codigo" id="codigo-retirada"></p>
+          <p><strong>Aguardando depósito</strong><br>Na versão integrada, o lojista deposita o pedido antes da retirada.</p>
+          <p class="ajuda">Anote o código antes de iniciar outra compra. Esta demonstração é reiniciada ao recarregar a página.</p>
+          <button class="secundario" id="nova-compra" type="button">Iniciar outra compra</button>
+        </section>
+      </aside>
+    </div>
+  </main>
+  <footer class="container">Produtos fictícios · Protótipo de compra e retirada · Semana 1</footer>
+  <noscript>Ative o JavaScript no navegador para testar a compra simulada.</noscript>
+  <script>
+    // Catálogo de teste. Os valores são números, com ponto decimal.
+    const produtos = {
+      caneca: { nome: "Caneca personalizada", preco: 39.90 },
+      caderno: { nome: "Caderno de ideias", preco: 24.90 },
+      garrafa: { nome: "Garrafa reutilizável", preco: 59.90 },
+    };
+    let produtoSelecionado = null;
+    const botoesProdutos = document.querySelectorAll(".botao-produto");
+    const formulario = document.getElementById("formulario-pagamento");
+    const botaoPagar = document.getElementById("botao-pagar");
+    const nomeEscolhido = document.getElementById("nome-escolhido");
+    const precoEscolhido = document.getElementById("preco-escolhido");
+    const confirmacao = document.getElementById("confirmacao");
+    const resumoConfirmado = document.getElementById("resumo-confirmado");
+    const codigoRetirada = document.getElementById("codigo-retirada");
+    const novaCompra = document.getElementById("nova-compra");
+    function formatarPreco(preco) {
+      return preco.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    }
+    function selecionarProduto(idProduto) {
+      produtoSelecionado = produtos[idProduto];
+      nomeEscolhido.textContent = produtoSelecionado.nome;
+      precoEscolhido.textContent = formatarPreco(produtoSelecionado.preco);
+      botaoPagar.disabled = false;
+      botoesProdutos.forEach(function (botao) {
+        const escolhido = botao.dataset.produto === idProduto;
+        const cartao = document.getElementById("cartao-" + botao.dataset.produto);
+        cartao.classList.toggle("selecionado", escolhido);
+        botao.setAttribute("aria-pressed", String(escolhido));
+        botao.textContent = "Escolher";
+        if (escolhido) {
+          botao.textContent = "Selecionado";
+        }
+      });
+    }
+    // Aqui está a resposta fixa que será substituída pela API real.
+    function simularPagamento(produto) {
+      return {
+        id: "DEMO-001",
+        produto: produto.nome,
+        preco: produto.preco,
+        codigo: "048271",
+        status: "PAGO",
+      };
+    }
+    function confirmarPagamento(evento) {
+      evento.preventDefault();
+      if (produtoSelecionado === null) {
+        return;
+      }
+      const resposta = simularPagamento(produtoSelecionado);
+      resumoConfirmado.textContent = resposta.produto + " · " + formatarPreco(resposta.preco);
+      codigoRetirada.textContent = resposta.codigo;
+      formulario.hidden = true;
+      confirmacao.hidden = false;
+      botoesProdutos.forEach(function (botao) {
+        botao.disabled = true;
+      });
+      novaCompra.focus();
+    }
+    function reiniciarCompra() {
+      produtoSelecionado = null;
+      nomeEscolhido.textContent = "Escolha um produto";
+      precoEscolhido.textContent = "—";
+      codigoRetirada.textContent = "";
+      resumoConfirmado.textContent = "";
+      confirmacao.hidden = true;
+      formulario.hidden = false;
+      botaoPagar.disabled = true;
+      botoesProdutos.forEach(function (botao) {
+        botao.disabled = false;
+        botao.textContent = "Escolher";
+        botao.setAttribute("aria-pressed", "false");
+        document.getElementById("cartao-" + botao.dataset.produto).classList.remove("selecionado");
+      });
+      botoesProdutos[0].focus();
+    }
+    // Registra quais funções serão chamadas em cada interação.
+    botoesProdutos.forEach(function (botao) {
+      botao.addEventListener("click", function () {
+        selecionarProduto(botao.dataset.produto);
+      });
+    });
+    formulario.addEventListener("submit", confirmarPagamento);
+    novaCompra.addEventListener("click", reiniciarCompra);
+  </script>
+</body>
+</html>
