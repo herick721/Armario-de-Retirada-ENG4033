@@ -38,6 +38,7 @@ def comando_valido(comando: str) -> bool:
 
 class SerialBridge:
     def __init__(self, fake: bool = False, porta: str = config.SERIAL_PORT):
+        self.armario = None  # quem decide o que fazer com cada mensagem (backend/armario.py)
         self.fake = fake
         self.porta = porta
         self._serial = None
@@ -78,7 +79,17 @@ class SerialBridge:
     # ---------- recebimento ----------
 
     def tratar_linha(self, linha: str) -> None:
-        """Interpreta uma mensagem do Arduino. Linha desconhecida é ignorada."""
+        """Interpreta uma mensagem do Arduino e repassa ao armário.
+
+        Linha fora do protocolo vira evento MENSAGEM_INVALIDA. Um erro ao
+        tratar uma linha é registrado, mas não derruba a thread da serial.
+        """
+        try:
+            self._tratar_linha(linha)
+        except Exception as erro:
+            db.registrar_evento("ERRO_INTERNO", f"{type(erro).__name__}: {erro}"[:100])
+
+    def _tratar_linha(self, linha: str) -> None:
         linha = linha.strip()
         if not linha:
             return
@@ -91,16 +102,11 @@ class SerialBridge:
         self._registrar("Arduino -> PC", linha if tipo != "CODE" else "CODE ******")
 
         if tipo == "HELLO":
-            db.registrar_evento("ARDUINO_LIGOU", linha)
+            self.armario.arduino_ligou(linha)
         elif tipo == "DOOR" and len(partes) == 3 and partes[1].isdigit() and partes[2] in ("OPEN", "CLOSED"):
-            porta_id = int(partes[1])
-            aberta = partes[2] == "OPEN"
-            db.atualizar_porta(porta_id, aberta=aberta)
-            db.registrar_evento("PORTA_ABERTA" if aberta else "PORTA_FECHADA", porta_id=porta_id)
+            self.armario.porta_mudou(int(partes[1]), partes[2] == "OPEN")
         elif tipo == "CODE" and len(partes) == 2 and partes[1].isdigit() and len(partes[1]) == 6:
-            # Validação do código é meta da Semana 2. O código digitado nunca
-            # vai para o log: o painel não pode ver códigos.
-            db.registrar_evento("CODIGO_DIGITADO", "validação ainda não implementada (S2)")
+            self.armario.codigo_digitado(partes[1])
         else:
             db.registrar_evento("MENSAGEM_INVALIDA", linha[:60])
 

@@ -79,7 +79,7 @@ def test_arduino_door_atualiza_porta(cliente):
     ponte = cliente.app.state.ponte
     ponte.tratar_linha("DOOR 1 OPEN\n")
     portas = cliente.get("/api/portas", auth=SENHA).json()
-    assert portas[0] == {"id": 1, "estado": "LIVRE", "aberta": True}
+    assert portas[0] == {"id": 1, "estado": "LIVRE", "aberta": True, "pedido_id": None}
     ponte.tratar_linha("DOOR 1 CLOSED")
     assert cliente.get("/api/portas", auth=SENHA).json()[0]["aberta"] is False
 
@@ -87,6 +87,19 @@ def test_arduino_door_atualiza_porta(cliente):
 def test_codigo_digitado_nao_vai_para_o_log(cliente):
     cliente.app.state.ponte.tratar_linha("CODE 482913")
     eventos = cliente.get("/api/eventos", auth=SENHA).json()
-    assert eventos[0]["tipo"] == "CODIGO_DIGITADO"
+    assert eventos[0]["tipo"] == "CODIGO_RECUSADO"
     assert "482913" not in str(eventos)
     assert "482913" not in str(cliente.get("/api/arduino", auth=SENHA).json())
+
+
+def test_loja_e_servida_pelo_backend(cliente):
+    r = cliente.get("/loja")
+    assert r.status_code == 200 and "/api/pedidos" in r.text
+    assert cliente.get("/imagens/caneca.jpg").status_code == 200
+    assert cliente.get("/", follow_redirects=False).headers["location"] == "/loja"
+
+
+def test_depositar_e_recolher_exigem_senha(cliente):
+    criado = cliente.post("/api/pedidos", json={"produto": "Fone"}).json()
+    for acao in ["depositar", "recolher"]:
+        assert cliente.post(f"/api/pedidos/{criado['id']}/{acao}").status_code == 401
