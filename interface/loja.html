@@ -275,28 +275,39 @@
           </div>
           <p class="ajuda">Ao confirmar, você verá um código de retirada de teste. Não há cobrança.</p>
           <button class="primario" id="botao-pagar" type="submit" disabled>Simular pagamento</button>
+          <p class="ajuda" id="erro-pagamento" role="alert" hidden></p>
         </form>
         <section id="confirmacao" aria-label="Confirmação do pedido" aria-live="polite" hidden>
           <p class="aprovado">Pagamento simulado aprovado!</p>
           <p id="resumo-confirmado"></p>
           <p class="ajuda">Seu código de retirada de teste</p>
           <p class="codigo" id="codigo-retirada"></p>
-          <p><strong>Aguardando depósito</strong><br>Na versão integrada, o lojista deposita o pedido antes da retirada.</p>
-          <p class="ajuda">Anote o código antes de iniciar outra compra. Esta demonstração é reiniciada ao recarregar a página.</p>
+          <p><strong id="status-titulo">Aguardando depósito</strong><br><span id="status-texto">O lojista vai colocar seu pedido em uma porta do armário.</span></p>
+          <p class="ajuda">Anote o código: por segurança ele aparece só agora e não é mostrado de novo, nem se você recarregar a página.</p>
           <button class="secundario" id="nova-compra" type="button">Iniciar outra compra</button>
         </section>
       </aside>
     </div>
   </main>
-  <footer class="container">Produtos fictícios · Protótipo de compra e retirada · Semana 1</footer>
+  <footer class="container">Produtos fictícios · Protótipo de compra e retirada</footer>
   <noscript>Ative o JavaScript no navegador para testar a compra simulada.</noscript>
   <script>
     // Catálogo de teste. Os valores são números, com ponto decimal.
     const produtos = {
-      caneca: { nome: "Caneca personalizada", preco: 39.90 },
-      caderno: { nome: "Caderno de ideias", preco: 24.90 },
-      garrafa: { nome: "Garrafa reutilizável", preco: 59.90 },
+      caneca: { nome: "Caneca Stitch", preco: 39.90 },
+      caderno: { nome: "Caderno salsicha - mini", preco: 44.90 },
+      garrafa: { nome: "Garrafa térmica colorida", preco: 89.90 },
     };
+    // Status do pedido (máquina de estados do backend) -> texto para o cliente
+    const textosStatus = {
+      PAGO: ["Aguardando depósito", "O lojista vai colocar seu pedido em uma porta do armário."],
+      DEPOSITADO: ["Pronto na porta {porta}", "Digite o código no teclado do armário e aperte #."],
+      RETIRADO: ["Retirado", "Pedido retirado. Obrigado!"],
+      EXPIRADO: ["Prazo vencido", "O prazo de 48 h acabou e o código não vale mais. Fale com a loja."],
+      DEVOLVIDO: ["Devolvido", "O pedido foi recolhido pela loja."],
+    };
+    let pedidoAtual = null;
+    let temporizadorStatus = null;
     let produtoSelecionado = null;
     const botoesProdutos = document.querySelectorAll(".botao-produto");
     const formulario = document.getElementById("formulario-pagamento");
@@ -307,6 +318,9 @@
     const resumoConfirmado = document.getElementById("resumo-confirmado");
     const codigoRetirada = document.getElementById("codigo-retirada");
     const novaCompra = document.getElementById("nova-compra");
+    const erroPagamento = document.getElementById("erro-pagamento");
+    const statusTitulo = document.getElementById("status-titulo");
+    const statusTexto = document.getElementById("status-texto");
     function formatarPreco(preco) {
       return preco.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     }
@@ -326,24 +340,63 @@
         }
       });
     }
-    // Aqui está a resposta fixa que será substituída pela API real.
-    function simularPagamento(produto) {
-      return {
-        id: "DEMO-001",
-        produto: produto.nome,
-        preco: produto.preco,
-        codigo: "048271",
-        status: "PAGO",
-      };
+    // Cria o pedido na API real. O pagamento é simulado pelo próprio backend.
+    async function criarPedido(produto) {
+      const resposta = await fetch("/api/pedidos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ produto: produto.nome }),
+      });
+      if (!resposta.ok) {
+        throw new Error("HTTP " + resposta.status);
+      }
+      return resposta.json();
     }
-    function confirmarPagamento(evento) {
+    function mostrarStatus(pedido) {
+      const [titulo, texto] = textosStatus[pedido.status] || [pedido.status, ""];
+      statusTitulo.textContent = titulo.replace("{porta}", pedido.porta_id);
+      statusTexto.textContent = texto;
+    }
+    // Consulta o status a cada 2 s até o pedido terminar (retirado ou devolvido).
+    async function acompanharPedido() {
+      if (pedidoAtual === null) {
+        return;
+      }
+      try {
+        const resposta = await fetch("/api/pedidos/" + encodeURIComponent(pedidoAtual));
+        if (resposta.ok) {
+          const pedido = await resposta.json();
+          mostrarStatus(pedido);
+          if (pedido.status === "RETIRADO" || pedido.status === "DEVOLVIDO") {
+            return;
+          }
+        }
+      } catch (erro) {
+        // servidor fora do ar por um instante: tenta de novo
+      }
+      temporizadorStatus = setTimeout(acompanharPedido, 2000);
+    }
+    async function confirmarPagamento(evento) {
       evento.preventDefault();
       if (produtoSelecionado === null) {
         return;
       }
-      const resposta = simularPagamento(produtoSelecionado);
-      resumoConfirmado.textContent = resposta.produto + " · " + formatarPreco(resposta.preco);
+      botaoPagar.disabled = true;
+      erroPagamento.hidden = true;
+      let resposta;
+      try {
+        resposta = await criarPedido(produtoSelecionado);
+      } catch (erro) {
+        erroPagamento.textContent = "Não foi possível falar com o servidor. Tente de novo.";
+        erroPagamento.hidden = false;
+        botaoPagar.disabled = false;
+        return;
+      }
+      resumoConfirmado.textContent = resposta.produto + " · " + formatarPreco(produtoSelecionado.preco);
       codigoRetirada.textContent = resposta.codigo;
+      pedidoAtual = resposta.id;
+      mostrarStatus(resposta);
+      acompanharPedido();
       formulario.hidden = true;
       confirmacao.hidden = false;
       botoesProdutos.forEach(function (botao) {
@@ -352,6 +405,8 @@
       novaCompra.focus();
     }
     function reiniciarCompra() {
+      clearTimeout(temporizadorStatus);
+      pedidoAtual = null;
       produtoSelecionado = null;
       nomeEscolhido.textContent = "Escolha um produto";
       precoEscolhido.textContent = "—";

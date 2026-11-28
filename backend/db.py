@@ -2,12 +2,13 @@
 
 Coleções (o equivalente às "tabelas" do documento do projeto):
   - pedidos: _id, produto, status, codigo_hmac, porta_id, criado_em, expira_em
-  - portas:  _id, estado (LIVRE/OCUPADA), aberta (True/False, vem do sensor)
+  - portas:  _id, estado (LIVRE/OCUPADA), aberta (True/False, vem do sensor), pedido_id
   - eventos: quando, tipo, porta_id, pedido_id, detalhe
+  - teclado: um único documento com o contador de erros e o bloqueio
 """
 from datetime import datetime, timezone
 
-from pymongo import DESCENDING, MongoClient
+from pymongo import ASCENDING, DESCENDING, MongoClient, ReturnDocument
 
 from backend import config
 
@@ -30,7 +31,7 @@ def conectar(database=None):
         # upsert: cria a porta só se ainda não existir
         _db.portas.update_one(
             {"_id": porta_id},
-            {"$setOnInsert": {"estado": "LIVRE", "aberta": False}},
+            {"$setOnInsert": {"estado": "LIVRE", "aberta": False, "pedido_id": None}},
             upsert=True,
         )
 
@@ -53,6 +54,37 @@ def listar_pedidos() -> list[dict]:
     return list(_db.pedidos.find().sort("criado_em", DESCENDING))
 
 
+def atualizar_pedido_se(pedido_id: str, status_esperado: str, campos: dict) -> dict | None:
+    """Muda o pedido SÓ se ele ainda estiver em status_esperado (operação atômica).
+
+    É o que garante o uso único: se duas retiradas chegarem juntas, só a
+    primeira encontra o pedido DEPOSITADO; a segunda recebe None.
+    """
+    return _db.pedidos.find_one_and_update(
+        {"_id": pedido_id, "status": status_esperado},
+        {"$set": campos},
+        return_document=ReturnDocument.AFTER,
+    )
+
+
+def vincular_porta(pedido_id: str, porta_id: int) -> bool:
+    """Liga o pedido PAGO à porta reservada, só se ele ainda não tiver porta."""
+    r = _db.pedidos.update_one(
+        {"_id": pedido_id, "status": "PAGO", "porta_id": None},
+        {"$set": {"porta_id": porta_id}},
+    )
+    return r.modified_count == 1
+
+
+def buscar_pedidos_por_hmac(codigo_hmac: str) -> list[dict]:
+    return list(_db.pedidos.find({"codigo_hmac": codigo_hmac}))
+
+
+def listar_vencidos(momento) -> list[dict]:
+    """Pedidos DEPOSITADOS cujo prazo de retirada já passou."""
+    return list(_db.pedidos.find({"status": "DEPOSITADO", "expira_em": {"$lte": momento}}))
+
+
 def existe_codigo_ativo(codigo_hmac: str) -> bool:
     """Ativo = pedido que ainda pode ser retirado com esse código."""
     return _db.pedidos.find_one(
@@ -66,8 +98,40 @@ def listar_portas() -> list[dict]:
     return list(_db.portas.find().sort("_id"))
 
 
+def buscar_porta(porta_id: int) -> dict | None:
+    return _db.portas.find_one({"_id": porta_id})
+
+
 def atualizar_porta(porta_id: int, **campos) -> None:
     _db.portas.update_one({"_id": porta_id}, {"$set": campos})
+
+
+def reservar_porta_livre(pedido_id: str) -> dict | None:
+    """Pega a primeira porta LIVRE e já a marca OCUPADA, numa operação só.
+
+    Atômico para dois depósitos ao mesmo tempo não escolherem a mesma porta.
+    """
+    return _db.portas.find_one_and_update(
+        {"estado": "LIVRE"},
+        {"$set": {"estado": "OCUPADA", "pedido_id": pedido_id}},
+        sort=[("_id", ASCENDING)],
+        return_document=ReturnDocument.AFTER,
+    )
+
+
+def liberar_porta(porta_id: int) -> None:
+    atualizar_porta(porta_id, estado="LIVRE", pedido_id=None)
+
+
+# ---------- teclado (bloqueio por tentativas) ----------
+
+def ler_teclado() -> dict:
+    padrao = {"_id": 1, "erros": 0, "bloqueios": 0, "bloqueado_ate": None}
+    return {**padrao, **(_db.teclado.find_one({"_id": 1}) or {})}
+
+
+def salvar_teclado(**campos) -> None:
+    _db.teclado.update_one({"_id": 1}, {"$set": campos}, upsert=True)
 
 
 # ---------- eventos ----------
